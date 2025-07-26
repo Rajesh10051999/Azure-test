@@ -1,0 +1,32 @@
+from azure.cosmos import CosmosClient
+from azure.storage.blob import BlobServiceClient
+import datetime
+
+COSMOS_ENDPOINT = "<cosmos-endpoint>"
+COSMOS_KEY = "<cosmos-key>"
+BLOB_CONNECTION_STRING = "<blob-connection-string>"
+THREE_MONTHS_AGO = datetime.datetime.utcnow() - datetime.timedelta(days=90)
+
+def archive_records():
+    cosmos_client = CosmosClient(COSMOS_ENDPOINT, COSMOS_KEY)
+    database = cosmos_client.get_database_client("BillingDB")
+    container = database.get_container_client("BillingRecords")
+    blob_service = BlobServiceClient.from_connection_string(BLOB_CONNECTION_STRING)
+    blob_container = blob_service.get_container_client("billing-records")
+
+    # Query records older than 3 months
+    query = f"SELECT * FROM c WHERE c.createdAt < '{THREE_MONTHS_AGO.isoformat()}'"
+    records = list(container.query_items(query, enable_cross_partition_query=True))
+
+    for record in records:
+        try:
+            # Write to Blob Storage
+            blob_name = f"{record['createdAt'][:7]}/{record['id']}.json"
+            blob_client = blob_container.get_blob_client(blob_name)
+            blob_client.upload_blob(json.dumps(record), overwrite=True)
+
+            # Delete from Cosmos DB
+            container.delete_item(record['id'], partition_key=record['createdAt'][:7])
+        except Exception as e:
+            print(f"Error processing record {record['id']}: {e}")
+            continue
