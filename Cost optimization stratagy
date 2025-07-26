@@ -1,0 +1,14 @@
+Cost Optimization Strategies
+Cosmos DB:
+Enable autoscale to reduce RUs during low-traffic periods (e.g., scale down to 400 RU/s, ~$0.032/hour).
+Partition Cosmos DB by createdAt (e.g., by month) to optimize query performance and reduce RU consumption.
+Regularly monitor RU usage via Azure Monitor and adjust throughput settings.
+
+Blob Storage:
+Use Archive tier for cold data (~$0.00099/GB/month vs. Cosmos DB’s $0.023/GB/month).
+For 2 million records at 300 KB each (~600 GB total), with 90% being >3 months old (540 GB), moving to Archive tier saves ~$12/GB/month × 540 GB = $6,480/month.
+Minimize rehydration costs by caching recently accessed records in Cool tier.
+
+Azure Functions:
+Use Consumption plan for Functions, which scales automatically and charges only for execution time.
+Optimize function execution by batching record archival (e.g., process 1,000 records per run).
