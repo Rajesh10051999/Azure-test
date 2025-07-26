@@ -1,0 +1,39 @@
+from azure.cosmos import CosmosClient
+from azure.storage.blob import BlobServiceClient
+import json
+
+COSMOS_ENDPOINT = "<cosmos-endpoint>"
+COSMOS_KEY = "<cosmos-key>"
+BLOB_CONNECTION_STRING = "<blob-connection-string>"
+
+def get_billing_record(record_id, partition_key):
+    cosmos_client = CosmosClient(COSMOS_ENDPOINT, COSMOS_KEY)
+    database = cosmos_client.get_database_client("BillingDB")
+    container = database.get_container_client("BillingRecords")
+    blob_service = BlobServiceClient.from_connection_string(BLOB_CONNECTION_STRING)
+    blob_container = blob_service.get_container_client("billing-records")
+
+    # Try Cosmos DB first
+    try:
+        record = container.read_item(item=record_id, partition_key=partition_key)
+        return record
+    except:
+        pass
+
+    # Try Blob Storage
+    for year in range(2020, datetime.datetime.utcnow().year + 1):
+        for month in range(1, 13):
+            blob_name = f"{year}/{month:02d}/{record_id}.json"
+            blob_client = blob_container.get_blob_client(blob_name)
+            try:
+                # Check if blob is archived; initiate rehydration if needed
+                blob_properties = blob_client.get_blob_properties()
+                if blob_properties.archive_status:
+                    blob_client.set_standard_blob_tier("Cool", rehydrate_priority="Standard")
+                    return {"status": "rehydrating", "message": "Record is being rehydrated"}
+                blob_data = blob_client.download_blob().readall()
+                return json.loads(blob_data)
+            except:
+                continue
+
+    return {"error": "Record not found"}
