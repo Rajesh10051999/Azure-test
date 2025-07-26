@@ -1,0 +1,17 @@
+[Client]
+   |
+   | HTTP (GET /billing/{id})
+   v
+[Azure Function: GetBillingRecord]
+   |                      |
+   | Query                | Query (if not in Cosmos DB)
+   v                      v
+[Azure Cosmos DB]   [Azure Blob Storage]
+(Hot: ≤3 months)    (Cold: >3 months, Archive tier)
+   ^
+   | Timer Trigger (Daily)
+   v
+[Azure Function: ArchiveBillingRecords]
+   | Move records >3 months
+   v
+[Azure Blob Storage]
