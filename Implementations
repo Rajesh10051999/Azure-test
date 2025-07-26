@@ -1,0 +1,21 @@
+Implementation Steps
+
+Configure Cosmos DB:
+Ensure records include createdAt timestamp.
+Set up autoscale throughput and partitioning by createdAt.
+
+Set up Blob Storage:
+Create a container (e.g., billing-records).
+Configure lifecycle rule to transition blobs to Archive tier immediately after upload.
+
+Deploy Archival Function:
+Create a Timer-triggered Azure Function to move records >3 months old.
+Use Cosmos DB SDK to query records and Blob Storage SDK to write JSON files.
+
+Deploy Retrieval Function:
+Create an HTTP-triggered Azure Function for record retrieval.
+Integrate with existing APIs via Azure API Management or direct routing.
+
+Monitor and Optimize:
+Use Azure Monitor to track Cosmos DB RU usage, Blob Storage costs, and Function executions.
+Fine-tune archival batch sizes and rehydration policies based on access patterns.
